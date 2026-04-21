@@ -144,7 +144,7 @@ async function callAgent(agentId, msgs, ctx=""){
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
+      model:"",
       max_tokens:600,
       system:sys,
       messages:msgs.filter(m=>m.role==="user"||m.role==="assistant")
