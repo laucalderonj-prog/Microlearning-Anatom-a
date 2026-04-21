@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AnatomIA — Apoyo de Estudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F7F3EE;font-family:'DM Sans',system-ui,sans-serif}
+#loading{position:fixed;inset:0;background:#1B2B4B;display:flex;align-items:center;
+  justify-content:center;flex-direction:column;gap:16px;z-index:9999;transition:opacity .4s ease}
+#loading.out{opacity:0;pointer-events:none}
+#loading p{color:rgba(255,255,255,.45);font-size:13px}
+.spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.1);
+  border-top-color:#0D9488;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#D6CEC4;border-radius:10px}
+textarea:focus,input:focus{outline:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes d1{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+@keyframes d2{0%,70%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+@keyframes d3{0%,80%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes pulse-ring{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(2.2)}}
+.fu{animation:fadeUp .3s ease both}
+.fi{animation:fadeIn .25s ease both}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spin"></div><p>Iniciando AnatomIA…</p></div>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+const C={
+  bg:"#F7F3EE",card:"#FFFFFF",
+  border:"#DDD5C8",borderL:"#EDE7DC",
+  navy:"#1B2B4B",
+  teal:"#0D9488",tealL:"#CCFBF4",tealM:"#5EEAD4",
+  stone:"#6B6560",stoneL:"#F0EBE4",
+  cl_c:"#C2410C",cl_l:"#FFF4EE",cl_b:"#FEDCC8",
+  mg_c:"#1D4ED8",mg_l:"#EFF6FF",mg_b:"#BFDBFE",
+  em_c:"#6D28D9",em_l:"#F5F3FF",em_b:"#DDD6FE",
+  txt:"#1B2B4B",txt2:"#4B5563",txt3:"#9CA3AF",
+};
+
+// ── SVG Icons ────────────────────────────────────────────────────────────────
+const Ico=({d,size=16,color="currentColor",sw=2})=>(
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+    <path d={d}/>
+  </svg>
+);
+const IC={
+  back:    "M19 12H5M12 5l-7 7 7 7",
+  send:    "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
+  chev:    "M9 18l6-6-6-6",
+  chat:    "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  book:    "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z",
+  zap:     "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  flask:   "M9 3v5l-5 9a1 1 0 0 0 .9 1.5h14.2A1 1 0 0 0 20 17l-5-9V3M7 3h10",
+  dna:     "M2 15c6.667-3 13.333 3 20 0M2 9c6.667-3 13.333 3 20 0M4.5 12c2.333-1 4.667 1 7 0s4.667-1 7 0M4.5 6c2.333-1 4.667 1 7 0s4.667-1 7 0",
+  heart:   "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z",
+  brain:   "M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.07-4.89A3 3 0 0 1 4 12a3 3 0 0 1 2.25-2.9 2.5 2.5 0 0 1 2.25-4.6zm5 0a2.5 2.5 0 0 0-2.5 2.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 1.07-4.89A3 3 0 0 0 20 12a3 3 0 0 0-2.25-2.9 2.5 2.5 0 0 0-2.25-4.6z",
+  wind:    "M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2",
+  bone:    "M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0-2.5-2.5c0 .81.7 1.8 0 2.5l-2 2c-.7.7-1.8 0-2.5 0a2.5 2.5 0 1 0 2.5 2.5c0-.81-.7-1.8 0-2.5l2-2z",
+  search:  "M21 21l-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z",
+  spark:   "M12 3l1.5 4.5h4.5l-3.75 2.75 1.5 4.5L12 12.5l-3.75 2.25 1.5-4.5L6 8.5h4.5L12 3z",
+  warn:    "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01",
+};
+
+const AGENTS={
+  claude:{id:"claude",name:"Claude",role:"Tutor conceptual",provider:"Anthropic",icon:"zap",
+    c:C.cl_c,l:C.cl_l,b:C.cl_b,tagline:"Explica, simplifica y conecta con la clínica",
+    system:`Eres Claude, asistente de apoyo para estudiantes de medicina que ya cursaron anatomía en clase.
+Tu rol NO es enseñar desde cero: refuerzas dudas y conceptos fuera del aula.
+Estilo: cálido, paciente, usa analogías memorables. Conecta siempre anatomía con contexto clínico.
+Respuestas breves y directas (máximo 4 oraciones), en español.`},
+  medgemma:{id:"medgemma",name:"Med-Gemma",role:"Razonamiento clínico",provider:"Google DeepMind",icon:"dna",
+    c:C.mg_c,l:C.mg_l,b:C.mg_b,tagline:"Correlaciona anatomía con signos y síntomas",
+    system:`Eres Med-Gemma, asistente de razonamiento clínico para estudiantes de medicina.
+Ayuda a correlacionar conocimiento anatómico ya visto en clase con manifestaciones clínicas.
+Estilo: clínico, preciso. Explica mecanismos fisiopatológicos basados en anatomía.
+Respuestas breves y clínicamente precisas (máximo 4 oraciones), en español.`},
+  emergent:{id:"emergent",name:"Emergent",role:"Evidencia científica",provider:"Research AI",icon:"flask",
+    c:C.em_c,l:C.em_l,b:C.em_b,tagline:"Contextualiza con investigación y evidencia actual",
+    system:`Eres Emergent, asistente de medicina basada en evidencia para estudiantes de medicina.
+Contextualiza el conocimiento anatómico ya visto con investigación biomédica actual.
+Menciona tipos de estudios y hallazgos relevantes; no inventes referencias específicas.
+Respuestas breves con foco en evidencia (máximo 4 oraciones), en español.`},
+};
+
+const TOPICS=[
+  {id:1,name:"Musculoesquelético",icon:"bone",c:"#EA580C",l:"#FFF4EE",
+   tags:["Articulaciones","Manguito rotador","Fascias","Biomecánica","Plexo braquial"],
+   caso:{title:"Hombro doloroso post-caída",
+    vig:"Masculino 45 años. Caída con brazo extendido → dolor agudo hombro derecho, imposibilidad para abducción activa >90°, arco doloroso 60-120°, signo de Neer positivo.",
+    q:"¿Qué estructura anatómica explica este cuadro y por qué el signo de Neer es positivo?"}},
+  {id:2,name:"Cardiovascular",icon:"heart",c:"#DC2626",l:"#FEF2F2",
+   tags:["Coronarias","Cavidades cardiacas","Grandes vasos","Sistema de conducción"],
+   caso:{title:"Dolor torácico con cambios en ECG",
+    vig:"Femenina 62 años, diabética. 30 min de dolor opresivo irradiado a brazo izq. Diaforesis, náuseas. ECG: elevación ST en V1-V4. Troponina en ascenso.",
+    q:"¿Qué arteria coronaria está comprometida y cuál es el sustrato anatómico de la elevación en V1-V4?"}},
+  {id:3,name:"Sistema Nervioso",icon:"brain",c:"#7C3AED",l:"#F5F3FF",
+   tags:["Corteza cerebral","Vías sensitivo-motoras","Nervios craneales","Médula espinal"],
+   caso:{title:"Déficit neurológico unilateral agudo",
+    vig:"Masculino 68 años. Amaneció con debilidad facial derecha y del brazo derecho, sin afasia. TA 190/110. TC inicial sin lesión isquémica.",
+    q:"Localiza anatómicamente la lesión y explica por qué no hay afasia si hay hemiplejia derecha."}},
+  {id:4,name:"Sistema Respiratorio",icon:"wind",c:"#0284C7",l:"#F0F9FF",
+   tags:["Árbol bronquial","Pleura","Mecánica ventilatoria","Vascularización pulmonar"],
+   caso:{title:"Disnea aguda post-cirugía",
+    vig:"Femenina 28 años, post-op cirugía de cadera. Disnea súbita, taquicardia, SpO2 87%, dolor pleurítico derecho. Rx: oligohemia derecha.",
+    q:"Explica el mecanismo anatómico del espacio muerto fisiológico en este contexto clínico."}},
+];
+
+const QUICK_Q=[
+  "¿Por qué es clínicamente importante?",
+  "Explícalo con una analogía",
+  "¿Qué estructuras vecinas se afectan?",
+  "¿Cómo lo memorizo mejor?",
+  "¿Qué dice la evidencia?",
+];
+const STARTERS=[
+  "¿Diferencia entre tendón y ligamento?",
+  "¿Por qué el nervio frénico tiene ese trayecto?",
+  "Explícame el triángulo femoral",
+  "¿Por qué el riñón derecho está más abajo?",
+  "¿Qué es el espacio de Retzius?",
+  "¿Por qué el apéndice duele en FID?",
+];
+
+// ── API call — va a /api/chat (el proxy de Vercel, sin API key en el front) ──
+async function callAgent(agentId, msgs, ctx=""){
+  const ag=AGENTS[agentId];
+  const sys=ag.system+(ctx?"\n\nContexto del caso activo:\n"+ctx:"");
+  const r=await fetch("/api/chat",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514",
+      max_tokens:600,
+      system:sys,
+      messages:msgs.filter(m=>m.role==="user"||m.role==="assistant")
+                   .map(m=>({role:m.role,content:m.content})),
+    }),
+  });
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||r.status);}
+  const d=await r.json();
+  return d.content?.[0]?.text??"Sin respuesta.";
+}
+
+// ── Shared components ────────────────────────────────────────────────────────
+function AgBtn({ag,active,onClick}){
+  return(
+    <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:6,
+      padding:"7px 13px",borderRadius:999,
+      border:`1.5px solid ${active?ag.c:C.border}`,
+      background:active?ag.l:"transparent",
+      cursor:"pointer",transition:"all .15s",flexShrink:0}}>
+      <Ico d={IC[ag.icon]} size={13} color={active?ag.c:C.stone}/>
+      <span style={{fontSize:12,fontWeight:active?600:400,
+        color:active?ag.c:C.stone,whiteSpace:"nowrap"}}>{ag.name}</span>
+    </button>
+  );
+}
+
+function Dots({color}){
+  return(
+    <div style={{display:"flex",gap:5,padding:"2px 0"}}>
+      {[1,2,3].map(i=>(
+        <span key={i} style={{width:7,height:7,borderRadius:"50%",
+          background:color,display:"block",
+          animation:`d${i} 1.3s ease ${(i-1)*0.13}s infinite`}}/>
+      ))}
+    </div>
+  );
+}
+
+function Bubble({m,isUser,agentId}){
+  const ag=AGENTS[agentId]||AGENTS.claude;
+  if(isUser) return(
+    <div className="fu" style={{alignSelf:"flex-end",maxWidth:"75%"}}>
+      <div style={{background:C.navy,borderRadius:"14px 14px 3px 14px",
+        padding:"10px 14px",fontSize:13,color:"#fff",lineHeight:1.7}}>
+        {m.content}
+      </div>
+    </div>
+  );
+  return(
+    <div className="fu" style={{alignSelf:"flex-start",maxWidth:"85%"}}>
+      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
+        <div style={{width:22,height:22,borderRadius:7,background:ag.b,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <Ico d={IC[ag.icon]} size={11} color={ag.c}/>
+        </div>
+        <span style={{fontSize:11,fontWeight:600,color:ag.c}}>{ag.name}</span>
+        <span style={{fontSize:10,color:C.txt3}}>· {ag.role}</span>
+      </div>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,
+        borderRadius:"3px 14px 14px 14px",padding:"12px 16px",
+        fontSize:13,color:C.txt2,lineHeight:1.8,whiteSpace:"pre-wrap"}}>
+        {m.content}
+      </div>
+    </div>
+  );
+}
+
+function Input({value,onChange,onSend,placeholder,ac,disabled}){
+  return(
+    <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
+      <textarea value={value} onChange={onChange} rows={2}
+        onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
+        placeholder={placeholder}
+        style={{flex:1,background:C.bg,border:`1.5px solid ${C.border}`,
+          borderRadius:12,color:C.navy,padding:"10px 14px",fontSize:13,
+          resize:"none",minHeight:44,maxHeight:120,lineHeight:1.55,
+          fontFamily:"'DM Sans',sans-serif",transition:"border-color .15s"}}
+        onFocus={e=>{e.target.style.borderColor=ac+"80"}}
+        onBlur={e=>{e.target.style.borderColor=C.border}}/>
+      <button onClick={onSend} disabled={disabled||!value.trim()} style={{
+        width:44,height:44,borderRadius:12,border:"none",
+        background:disabled||!value.trim()?C.stoneL:ac,
+        color:disabled||!value.trim()?C.txt3:"#fff",
+        cursor:disabled||!value.trim()?"not-allowed":"pointer",
+        display:"flex",alignItems:"center",justifyContent:"center",
+        flexShrink:0,transition:"all .15s"}}>
+        <Ico d={IC.send} size={15} color={disabled||!value.trim()?C.txt3:"#fff"}/>
+      </button>
+    </div>
+  );
+}
+
+// ── Banner de error de configuración (si la API key no está en Vercel) ───────
+function ErrBanner({msg}){
+  return(
+    <div style={{background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:10,
+      padding:"10px 14px",display:"flex",alignItems:"flex-start",gap:8,margin:"0 0 12px"}}>
+      <Ico d={IC.warn} size={15} color="#92400E" sw={2}/>
+      <p style={{fontSize:12,color:"#78350F",lineHeight:1.6}}>{msg}</p>
+    </div>
+  );
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────────────
+function Home({onTopic,onFree}){
+  const [q,setQ]=useState("");
+  const ft=TOPICS.filter(t=>q===""||
+    t.name.toLowerCase().includes(q.toLowerCase())||
+    t.tags.some(tg=>tg.toLowerCase().includes(q.toLowerCase())));
+
+  return(
+    <div style={{background:C.bg,minHeight:"100vh"}}>
+      {/* Header navy */}
+      <div style={{background:C.navy,padding:"0 24px"}}>
+        <div style={{maxWidth:860,margin:"0 auto",padding:"14px 0",
+          display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:10,
+              background:"rgba(13,148,136,.2)",border:"1px solid rgba(13,148,136,.35)",
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Ico d={IC.spark} size={15} color="#5EEAD4"/>
+            </div>
+            <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,
+              fontWeight:600,color:"#fff"}}>AnatomIA</span>
+            <span style={{fontSize:10,color:"rgba(255,255,255,.3)",letterSpacing:"0.8px"}}>
+              · APOYO DE ESTUDIO
+            </span>
+          </div>
+          {/* Online badge */}
+          <div style={{display:"flex",alignItems:"center",gap:7}}>
+            <div style={{position:"relative",width:8,height:8}}>
+              <div style={{position:"absolute",inset:0,borderRadius:"50%",
+                background:C.teal,animation:"pulse-ring 2s ease-out infinite"}}/>
+              <div style={{position:"absolute",inset:0,borderRadius:"50%",background:C.teal}}/>
+            </div>
+            <span style={{fontSize:11,color:C.tealM,fontWeight:500}}>Online · 24/7</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div style={{background:C.navy,paddingBottom:44}}>
+        <div style={{maxWidth:860,margin:"0 auto",padding:"36px 24px 0"}}>
+          <p style={{fontSize:10,fontWeight:600,color:C.teal,letterSpacing:"1.5px",
+            textTransform:"uppercase",marginBottom:12}}>
+            Herramienta de apoyo · Fuera del aula · Sin evaluación formal
+          </p>
+          <h1 className="fu" style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:36,
+            fontWeight:600,color:"#fff",lineHeight:1.22,marginBottom:14}}>
+            Refuerza lo que aprendiste<br/>
+            <em style={{color:"#5EEAD4",fontStyle:"italic",fontWeight:400}}>en clase, hoy.</em>
+          </h1>
+          <p className="fu" style={{fontSize:13.5,color:"rgba(255,255,255,.5)",
+            lineHeight:1.75,maxWidth:510,marginBottom:28,animationDelay:".08s"}}>
+            No es un curso. Es tu espacio para resolver dudas, profundizar conceptos y
+            explorar la anatomía a tu ritmo — cuando quieras, sin presión.
+          </p>
+          {/* Agents row */}
+          <div className="fu" style={{display:"flex",gap:8,flexWrap:"wrap",animationDelay:".15s"}}>
+            {Object.values(AGENTS).map(ag=>(
+              <div key={ag.id} style={{display:"flex",alignItems:"center",gap:6,
+                background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",
+                borderRadius:999,padding:"7px 14px"}}>
+                <Ico d={IC[ag.icon]} size={13} color={ag.c}/>
+                <span style={{fontSize:12,color:"rgba(255,255,255,.8)",fontWeight:500}}>{ag.name}</span>
+                <span style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>·</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>{ag.role}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{maxWidth:860,margin:"0 auto",padding:"28px 24px 48px"}}>
+        {/* Free query CTA */}
+        <div className="fu" onClick={onFree} style={{animationDelay:".18s",
+          background:C.card,border:`1px solid ${C.border}`,borderRadius:16,
+          padding:"18px 22px",marginBottom:22,cursor:"pointer",
+          display:"flex",alignItems:"center",justifyContent:"space-between",
+          transition:"all .15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=C.teal;
+            e.currentTarget.style.boxShadow=`0 0 0 3px ${C.tealL}`}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;
+            e.currentTarget.style.boxShadow="none"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:42,height:42,borderRadius:12,background:C.tealL,
+              border:`1px solid rgba(13,148,136,.25)`,display:"flex",
+              alignItems:"center",justifyContent:"center"}}>
+              <Ico d={IC.chat} size={20} color={C.teal}/>
+            </div>
+            <div>
+              <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:15,
+                fontWeight:500,color:C.navy,marginBottom:3}}>
+                Consulta libre con los especialistas
+              </div>
+              <div style={{fontSize:12,color:C.stone}}>
+                Cualquier duda de anatomía — sin caso, sin estructura obligatoria
+              </div>
+            </div>
+          </div>
+          <Ico d={IC.chev} size={16} color={C.teal}/>
+        </div>
+
+        {/* Search + grid */}
+        <div style={{display:"flex",alignItems:"center",
+          justifyContent:"space-between",marginBottom:14}}>
+          <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:16,
+            fontWeight:500,color:C.navy}}>Casos por sistema</span>
+          <div style={{position:"relative"}}>
+            <div style={{position:"absolute",left:10,top:"50%",
+              transform:"translateY(-50%)",pointerEvents:"none"}}>
+              <Ico d={IC.search} size={13} color={C.stone}/>
+            </div>
+            <input value={q} onChange={e=>setQ(e.target.value)}
+              placeholder="Buscar sistema…"
+              style={{paddingLeft:30,paddingRight:12,paddingTop:7,paddingBottom:7,
+                border:`1px solid ${C.border}`,borderRadius:999,fontSize:12,
+                color:C.navy,background:C.card,width:180}}/>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
+          {ft.map((t,i)=>(
+            <div key={t.id} className="fu" style={{animationDelay:`${.1+i*.07}s`}}>
+              <div onClick={()=>onTopic(t)} style={{background:C.card,
+                border:`1px solid ${C.border}`,borderRadius:16,
+                padding:"18px 20px",cursor:"pointer",transition:"all .15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=t.c+"70";
+                  e.currentTarget.style.transform="translateY(-2px)";
+                  e.currentTarget.style.boxShadow=`0 8px 24px ${t.c}15`}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;
+                  e.currentTarget.style.transform="none";
+                  e.currentTarget.style.boxShadow="none"}}>
+                <div style={{display:"flex",justifyContent:"space-between",
+                  alignItems:"flex-start",marginBottom:12}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:t.l,
+                    border:`1px solid ${t.c}20`,display:"flex",
+                    alignItems:"center",justifyContent:"center"}}>
+                    <Ico d={IC[t.icon]} size={22} color={t.c}/>
+                  </div>
+                  <Ico d={IC.chev} size={14} color={C.txt3}/>
+                </div>
+                <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:15,
+                  fontWeight:500,color:C.navy,marginBottom:8}}>{t.name}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:12}}>
+                  {t.tags.slice(0,3).map(tg=>(
+                    <span key={tg} style={{fontSize:10,color:t.c,background:t.l,
+                      padding:"2px 8px",borderRadius:999,fontWeight:500}}>{tg}</span>
+                  ))}
+                </div>
+                <div style={{paddingTop:10,borderTop:`1px solid ${C.borderL}`,
+                  display:"flex",alignItems:"center",gap:5}}>
+                  <Ico d={IC.book} size={11} color={C.stone}/>
+                  <span style={{fontSize:11,color:C.stone,fontStyle:"italic"}}>{t.caso.title}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{marginTop:24,fontSize:11,color:C.txt3,textAlign:"center",lineHeight:1.7}}>
+          AnatomIA complementa tus clases. No reemplaza la instrucción formal,
+          el cadáver ni la supervisión de tus docentes.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── SESSION ───────────────────────────────────────────────────────────────────
+function Session({topic,onBack}){
+  const [agId,setAgId]=useState("claude");
+  const [msgs,setMsgs]=useState([]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+  const chatEl=useRef(null);
+  const ag=AGENTS[agId];
+  const ctx=topic.caso.vig+"\n"+topic.caso.q;
+
+  useEffect(()=>{
+    setMsgs([{id:0,role:"assistant",agentId:"claude",
+      content:`Hola. Estoy aquí para ayudarte a reforzar **${topic.name}** fuera del aula.\n\nPuedes explorar el caso clínico, preguntar sobre cualquier concepto del sistema, o simplemente resolver lo que no quedó claro en clase. Sin estructura obligatoria.`}]);
+  },[topic]);
+
+  useEffect(()=>{
+    if(chatEl.current)chatEl.current.scrollTop=chatEl.current.scrollHeight;
+  },[msgs,loading]);
+
+  const send=useCallback(async(text)=>{
+    const msg=(text||input).trim();
+    if(!msg||loading)return;
+    setInput("");setErr("");
+    const updated=[...msgs,{id:Date.now(),role:"user",content:msg}];
+    setMsgs(updated);setLoading(true);
+    try{
+      const reply=await callAgent(agId,updated,ctx);
+      setMsgs(m=>[...m,{id:Date.now()+1,role:"assistant",agentId:agId,content:reply}]);
+    }catch(e){
+      setErr(e.message||"Error de conexión");
+      setMsgs(m=>[...m,{id:Date.now()+1,role:"assistant",agentId:agId,
+        content:"No pude conectarme. Intenta de nuevo en un momento."}]);
+    }
+    setLoading(false);
+  },[input,msgs,loading,agId,ctx]);
+
+  return(
+    <div style={{background:C.bg,height:"100vh",display:"flex",
+      flexDirection:"column",overflow:"hidden"}}>
+      {/* Top bar */}
+      <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,
+        padding:"10px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+        <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:5,
+          background:C.stoneL,border:"none",borderRadius:8,color:C.stone,
+          cursor:"pointer",padding:"6px 10px",fontSize:12,fontWeight:500}}>
+          <Ico d={IC.back} size={13} color={C.stone}/>Inicio
+        </button>
+        <div style={{flex:1,minWidth:0}}>
+          <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:14,
+            fontWeight:500,color:C.navy}}>{topic.name}</span>
+          <span style={{fontSize:11,color:C.txt3,marginLeft:8}}>
+            Sesión de apoyo · fuera del aula
+          </span>
+        </div>
+        <div style={{display:"flex",gap:5}}>
+          {Object.values(AGENTS).map(a=>(
+            <AgBtn key={a.id} ag={a} active={agId===a.id} onClick={()=>setAgId(a.id)}/>
+          ))}
+        </div>
+      </div>
+
+      {/* 2 col */}
+      <div style={{flex:1,display:"grid",gridTemplateColumns:"310px 1fr",
+        overflow:"hidden",minHeight:0}}>
+
+        {/* Left panel */}
+        <div style={{borderRight:`1px solid ${C.border}`,display:"flex",
+          flexDirection:"column",background:C.bg,overflow:"hidden"}}>
+          <div style={{flex:1,overflowY:"auto",padding:16}}>
+            {/* Case */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,
+              borderLeft:`3px solid ${topic.c}`,borderRadius:12,
+              padding:"14px 16px",marginBottom:12}}>
+              <p style={{fontSize:9,fontWeight:700,color:topic.c,
+                letterSpacing:"0.8px",textTransform:"uppercase",marginBottom:8}}>
+                Caso Clínico
+              </p>
+              <p style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:13,
+                fontWeight:500,color:C.navy,marginBottom:8,lineHeight:1.5}}>
+                {topic.caso.title}
+              </p>
+              <p style={{fontSize:12,color:C.txt2,lineHeight:1.75,fontStyle:"italic"}}>
+                {topic.caso.vig}
+              </p>
+            </div>
+
+            {/* Starter */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,
+              borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+              <p style={{fontSize:9,fontWeight:700,color:C.stone,letterSpacing:"0.5px",
+                textTransform:"uppercase",marginBottom:6}}>Punto de partida sugerido</p>
+              <p style={{fontSize:12,color:C.navy,lineHeight:1.6,marginBottom:10}}>
+                {topic.caso.q}
+              </p>
+              <button onClick={()=>send(topic.caso.q)} style={{
+                width:"100%",padding:"8px",borderRadius:8,
+                border:`1px dashed ${topic.c}60`,background:topic.l,
+                color:topic.c,fontSize:12,fontWeight:500,cursor:"pointer"}}
+                onMouseEnter={e=>{e.target.style.borderStyle="solid"}}
+                onMouseLeave={e=>{e.target.style.borderStyle="dashed"}}>
+                Enviar esta pregunta →
+              </button>
+            </div>
+
+            {/* Tags */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,
+              borderRadius:12,padding:"12px 14px"}}>
+              <p style={{fontSize:9,fontWeight:700,color:C.stone,letterSpacing:"0.5px",
+                textTransform:"uppercase",marginBottom:8}}>Temas del sistema</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                {topic.tags.map(tg=>(
+                  <button key={tg} onClick={()=>send(`Explícame brevemente: ${tg}`)} style={{
+                    fontSize:11,color:topic.c,background:topic.l,
+                    border:`1px solid ${topic.c}25`,padding:"4px 10px",
+                    borderRadius:999,cursor:"pointer",transition:"all .12s"}}
+                    onMouseEnter={e=>{e.target.style.background=topic.c;e.target.style.color="#fff"}}
+                    onMouseLeave={e=>{e.target.style.background=topic.l;e.target.style.color=topic.c}}>
+                    {tg}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Agent footer */}
+          <div style={{borderTop:`1px solid ${C.border}`,padding:"11px 16px",
+            display:"flex",alignItems:"center",gap:10,background:ag.l,flexShrink:0}}>
+            <div style={{width:32,height:32,borderRadius:8,background:ag.b,
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Ico d={IC[ag.icon]} size={15} color={ag.c}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:ag.c}}>{ag.name}</div>
+              <div style={{fontSize:10,color:C.stone}}>{ag.tagline}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: chat */}
+        <div style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div ref={chatEl} style={{flex:1,overflowY:"auto",padding:16,
+            display:"flex",flexDirection:"column",gap:12}}>
+            {err&&<ErrBanner msg={`Error: ${err}`}/>}
+            {msgs.map(m=>(
+              <Bubble key={m.id} m={m} isUser={m.role==="user"} agentId={m.agentId||agId}/>
+            ))}
+            {loading&&(
+              <div className="fi" style={{alignSelf:"flex-start"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
+                  <Ico d={IC[ag.icon]} size={11} color={ag.c}/>
+                  <span style={{fontSize:11,fontWeight:600,color:ag.c}}>{ag.name}</span>
+                </div>
+                <div style={{background:C.card,border:`1px solid ${C.border}`,
+                  borderRadius:"3px 14px 14px 14px",padding:"12px 18px"}}>
+                  <Dots color={ag.c}/>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick suggestions */}
+          <div style={{padding:"7px 16px",borderTop:`1px solid ${C.borderL}`,
+            display:"flex",gap:6,overflowX:"auto",flexShrink:0}}>
+            {QUICK_Q.map((q,i)=>(
+              <button key={i} onClick={()=>send(q)} style={{
+                fontSize:11,color:C.stone,background:C.stoneL,
+                border:`1px solid ${C.border}`,borderRadius:999,
+                padding:"4px 10px",cursor:"pointer",whiteSpace:"nowrap",
+                flexShrink:0,transition:"all .12s"}}
+                onMouseEnter={e=>{e.target.style.background=ag.l;e.target.style.color=ag.c;e.target.style.borderColor=ag.c+"50"}}
+                onMouseLeave={e=>{e.target.style.background=C.stoneL;e.target.style.color=C.stone;e.target.style.borderColor=C.border}}>
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* Input */}
+          <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 16px",
+            flexShrink:0,background:C.card}}>
+            <Input value={input} onChange={e=>setInput(e.target.value)}
+              onSend={()=>send()} placeholder={`Pregunta a ${ag.name} sobre ${topic.name}…`}
+              ac={ag.c} disabled={loading}/>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── FREE QUERY ────────────────────────────────────────────────────────────────
+function FreeQuery({onBack}){
+  const [agId,setAgId]=useState("claude");
+  const [msgs,setMsgs]=useState([]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const chatEl=useRef(null);
+  const ag=AGENTS[agId];
+
+  useEffect(()=>{
+    setMsgs([{id:0,role:"assistant",agentId:"claude",
+      content:"Hola. Puedes preguntarme cualquier duda de anatomía — sin estructura, sin caso, sin presión. Estoy aquí para ayudarte a reforzar lo que viste en clase."}]);
+  },[]);
+
+  useEffect(()=>{
+    if(chatEl.current)chatEl.current.scrollTop=chatEl.current.scrollHeight;
+  },[msgs,loading]);
+
+  const send=useCallback(async(text)=>{
+    const msg=(text||input).trim();
+    if(!msg||loading)return;
+    setInput("");
+    const updated=[...msgs,{id:Date.now(),role:"user",content:msg}];
+    setMsgs(updated);setLoading(true);
+    try{
+      const reply=await callAgent(agId,updated,"");
+      setMsgs(m=>[...m,{id:Date.now()+1,role:"assistant",agentId:agId,content:reply}]);
+    }catch(e){
+      setMsgs(m=>[...m,{id:Date.now()+1,role:"assistant",agentId:agId,
+        content:"Error de conexión. Intenta de nuevo."}]);
+    }
+    setLoading(false);
+  },[input,msgs,loading,agId]);
+
+  return(
+    <div style={{background:C.bg,height:"100vh",display:"flex",
+      flexDirection:"column",overflow:"hidden"}}>
+      {/* Top bar */}
+      <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,
+        padding:"10px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+        <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:5,
+          background:C.stoneL,border:"none",borderRadius:8,color:C.stone,
+          cursor:"pointer",padding:"6px 10px",fontSize:12,fontWeight:500}}>
+          <Ico d={IC.back} size={13} color={C.stone}/>Inicio
+        </button>
+        <div style={{flex:1}}>
+          <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:14,
+            fontWeight:500,color:C.navy}}>Consulta libre</span>
+          <span style={{fontSize:11,color:C.txt3,marginLeft:8}}>
+            Cualquier duda de anatomía
+          </span>
+        </div>
+        <div style={{display:"flex",gap:5}}>
+          {Object.values(AGENTS).map(a=>(
+            <AgBtn key={a.id} ag={a} active={agId===a.id} onClick={()=>setAgId(a.id)}/>
+          ))}
+        </div>
+      </div>
+
+      {/* Agent banner */}
+      <div style={{background:ag.l,borderBottom:`1px solid ${ag.b}`,
+        padding:"9px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+        <Ico d={IC[ag.icon]} size={14} color={ag.c}/>
+        <span style={{fontSize:12,fontWeight:600,color:ag.c}}>{ag.name}</span>
+        <span style={{fontSize:12,color:C.stone}}>— {ag.tagline}</span>
+        <span style={{marginLeft:"auto",fontSize:10,color:C.txt3}}>via {ag.provider}</span>
+      </div>
+
+      {/* Starters */}
+      {msgs.length<=1&&(
+        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.borderL}`}}>
+          <p style={{fontSize:9,fontWeight:700,color:C.stone,letterSpacing:"0.5px",
+            textTransform:"uppercase",marginBottom:8}}>Preguntas frecuentes</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {STARTERS.map((s,i)=>(
+              <button key={i} onClick={()=>setInput(s)} style={{
+                fontSize:12,color:ag.c,background:ag.l,
+                border:`1px solid ${ag.c}30`,borderRadius:999,
+                padding:"6px 12px",cursor:"pointer",transition:"all .12s"}}
+                onMouseEnter={e=>{e.target.style.background=ag.c;e.target.style.color="#fff"}}
+                onMouseLeave={e=>{e.target.style.background=ag.l;e.target.style.color=ag.c}}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div ref={chatEl} style={{flex:1,overflowY:"auto",padding:16,
+        display:"flex",flexDirection:"column",gap:12}}>
+        {msgs.map(m=>(
+          <Bubble key={m.id} m={m} isUser={m.role==="user"} agentId={m.agentId||agId}/>
+        ))}
+        {loading&&(
+          <div className="fi" style={{alignSelf:"flex-start"}}>
+            <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
+              <Ico d={IC[ag.icon]} size={11} color={ag.c}/>
+              <span style={{fontSize:11,fontWeight:600,color:ag.c}}>{ag.name}</span>
+            </div>
+            <div style={{background:C.card,border:`1px solid ${C.border}`,
+              borderRadius:"3px 14px 14px 14px",padding:"12px 18px"}}>
+              <Dots color={ag.c}/>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 16px",
+        flexShrink:0,background:C.card}}>
+        <Input value={input} onChange={e=>setInput(e.target.value)}
+          onSend={()=>send()} placeholder={`Pregunta a ${ag.name} sobre anatomía…`}
+          ac={ag.c} disabled={loading}/>
+      </div>
+    </div>
+  );
+}
+
+// ── ROOT ──────────────────────────────────────────────────────────────────────
+function App(){
+  const [view,setView]=useState("home");
+  const [topic,setTopic]=useState(null);
+
+  useEffect(()=>{
+    const el=document.getElementById("loading");
+    if(el)setTimeout(()=>{el.classList.add("out");setTimeout(()=>el.remove(),400)},400);
+  },[]);
+
+  if(view==="session"&&topic)
+    return <Session topic={topic} onBack={()=>setView("home")}/>;
+  if(view==="free")
+    return <FreeQuery onBack={()=>setView("home")}/>;
+  return <Home
+    onTopic={t=>{setTopic(t);setView("session");}}
+    onFree={()=>setView("free")}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
